@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ForwardJuntos · Phishing Forensics</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Azeret+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:     #07080F;
+  --panel:  #0F1018;
+  --card:   #141520;
+  --border: rgba(255,255,255,0.07);
+  --purple: #6B4FD8;
+  --violet: #9B7FFF;
+  --gold:   #E8AA3C;
+  --jade:   #2DE08A;
+  --red:    #FF4444;
+  --amber:  #FF9900;
+  --white:  #F0EDF8;
+  --muted:  #6B6880;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px}
+body{background:var(--bg);color:var(--white);font-family:'DM Sans',sans-serif;min-height:100vh;padding:0 0 60px}
+body::before{content:'';position:fixed;inset:0;z-index:0;
+  background-image:linear-gradient(rgba(107,79,216,0.03) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(107,79,216,0.03) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none}
+.page{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:0 20px}
+
+header{padding:32px 0 0;margin-bottom:22px}
+.brand{font-family:'Azeret Mono',monospace;font-size:10px;letter-spacing:0.3em;color:var(--gold);margin-bottom:6px}
+.title{font-family:'Syne',sans-serif;font-size:clamp(24px,5vw,36px);font-weight:800;line-height:1.1;margin-bottom:6px}
+.title span{color:var(--red)}
+.subtitle{font-size:13px;color:var(--muted);line-height:1.6}
+
+.info-strip{background:rgba(107,79,216,0.07);border:1px solid rgba(107,79,216,0.2);border-radius:12px;
+  padding:13px 16px;font-size:12.5px;color:#BCB6D8;line-height:1.65;margin-bottom:18px}
+.info-strip strong{color:var(--white)}
+
+.examples{margin-bottom:14px}
+.examples-label{font-family:'Azeret Mono',monospace;font-size:10px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
+.example-pills{display:flex;gap:8px;flex-wrap:wrap}
+.epill{font-size:12px;padding:7px 13px;background:var(--card);border:1px solid var(--border);border-radius:999px;cursor:pointer;transition:.18s;color:#C9C4DE}
+.epill:hover{border-color:var(--purple);color:var(--white)}
+
+.input-card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:14px}
+.input-label{font-family:'Azeret Mono',monospace;font-size:10px;letter-spacing:0.2em;color:var(--muted);text-transform:uppercase;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.input-label .hint{letter-spacing:0;text-transform:none;font-size:10.5px;color:#55516B}
+textarea{width:100%;padding:14px 16px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--white);font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.7;resize:vertical;outline:none;transition:border-color .2s}
+textarea:focus{border-color:rgba(107,79,216,.4)}
+textarea::placeholder{color:var(--muted)}
+#emailInput{min-height:170px}
+#headerInput{min-height:80px;font-family:'Azeret Mono',monospace;font-size:11.5px}
+.url-input{width:100%;padding:11px 16px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--white);font-family:'Azeret Mono',monospace;font-size:12px;outline:none;margin-top:4px;transition:border-color .2s}
+.url-input:focus{border-color:rgba(107,79,216,.4)}
+.url-result{margin-top:8px;font-size:12.5px;line-height:1.6}
+
+.btn-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.analyze-btn{padding:13px 22px;background:var(--purple);border:none;border-radius:10px;color:var(--white);font-family:'Syne',sans-serif;font-weight:700;font-size:14px;cursor:pointer;transition:.2s;flex:1;min-width:200px}
+.analyze-btn:hover{background:var(--violet);transform:translateY(-1px)}
+.analyze-btn:disabled{opacity:.5;cursor:wait;transform:none}
+.ghost-btn{padding:13px 18px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-family:'Syne',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:.2s}
+.ghost-btn:hover{border-color:var(--purple);color:var(--white)}
+
+/* settings */
+details.settings{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:0;margin-bottom:18px;overflow:hidden}
+details.settings summary{cursor:pointer;padding:13px 18px;font-family:'Azeret Mono',monospace;font-size:11px;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;list-style:none}
+details.settings summary::-webkit-details-marker{display:none}
+details.settings summary:hover{color:var(--white)}
+.settings-body{padding:4px 18px 18px;display:grid;gap:12px}
+.settings-body label{font-size:11px;color:var(--muted);display:block;margin-bottom:5px}
+.settings-body input{width:100%;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:9px;color:var(--white);font-family:'Azeret Mono',monospace;font-size:12px;outline:none}
+.settings-body input:focus{border-color:rgba(107,79,216,.4)}
+.settings-note{font-size:11.5px;color:#55516B;line-height:1.6}
+.settings-note strong{color:var(--amber)}
+
+/* result */
+.result{display:none;margin-bottom:20px}
+.result.active{display:block}
+.verdict-card{border-radius:16px;padding:22px;margin-bottom:14px;position:relative;overflow:hidden}
+.verdict-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.verdict-safe{background:rgba(45,224,138,.06);border:1px solid rgba(45,224,138,.25)}
+.verdict-safe::before{background:linear-gradient(90deg,var(--jade),transparent)}
+.verdict-warning{background:rgba(255,153,0,.06);border:1px solid rgba(255,153,0,.25)}
+.verdict-warning::before{background:linear-gradient(90deg,var(--amber),transparent)}
+.verdict-danger{background:rgba(255,68,68,.06);border:1px solid rgba(255,68,68,.3)}
+.verdict-danger::before{background:linear-gradient(90deg,var(--red),transparent)}
+.verdict-top{display:flex;align-items:center;gap:16px;margin-bottom:12px;flex-wrap:wrap}
+.verdict-icon{font-size:34px;flex-shrink:0}
+.verdict-score{font-family:'Syne',sans-serif;font-size:42px;font-weight:800;line-height:1}
+.verdict-label{font-family:'Azeret Mono',monospace;font-size:11px;letter-spacing:.15em;margin-top:2px}
+.verdict-safe .verdict-score{color:var(--jade)}
+.verdict-safe .verdict-label{color:rgba(45,224,138,.6)}
+.verdict-warning .verdict-score{color:var(--amber)}
+.verdict-warning .verdict-label{color:rgba(255,153,0,.6)}
+.verdict-danger .verdict-score{color:var(--red)}
+.verdict-danger .verdict-label{color:rgba(255,68,68,.6)}
+.verdict-meta{margin-left:auto;text-align:right;font-family:'Azeret Mono',monospace;font-size:10.5px;color:var(--muted);line-height:1.8}
+.verdict-summary{font-size:13.5px;line-height:1.7;color:#D8D4E8}
+
+.gauge{height:8px;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden;margin:14px 0 4px}
+.gauge i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--jade),var(--amber),var(--red));width:0;transition:width .8s cubic-bezier(.2,.8,.2,1)}
+
+.section{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:12px}
+.section h3{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section h3 .tag{font-family:'Azeret Mono',monospace;font-size:9px;letter-spacing:.15em;padding:3px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted);font-weight:400}
+.finding{display:flex;gap:10px;padding:9px 0;border-top:1px solid rgba(255,255,255,.04);font-size:12.5px;line-height:1.6}
+.finding:first-of-type{border-top:none}
+.finding .sev{flex-shrink:0;width:8px;height:8px;border-radius:50%;margin-top:6px}
+.sev-hi{background:var(--red);box-shadow:0 0 8px rgba(255,68,68,.6)}
+.sev-md{background:var(--amber);box-shadow:0 0 8px rgba(255,153,0,.5)}
+.sev-lo{background:var(--jade);box-shadow:0 0 8px rgba(45,224,138,.4)}
+.finding b{color:var(--white)}
+.finding .desc{color:#A39EBC}
+.finding code{font-family:'Azeret Mono',monospace;font-size:11px;background:rgba(107,79,216,.12);padding:1px 6px;border-radius:5px;color:#CFC6FF;word-break:break-all}
+
+.ai-pending{font-size:12.5px;color:var(--muted);padding:8px 0}
+.ai-pending .spin{display:inline-block;animation:rot 1s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.ai-error{font-size:12.5px;color:var(--amber);line-height:1.6}
+
+.dim{margin-bottom:12px}
+.dim-title{font-family:'Azeret Mono',monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--violet);margin-bottom:6px}
+.dim-body{font-size:12.5px;line-height:1.7;color:#C9C4DE}
+.dim-body ul{margin:4px 0 0 18px}
+.dim-body li{margin:3px 0}
+
+.advice{background:rgba(45,224,138,.05);border:1px solid rgba(45,224,138,.2);border-radius:12px;padding:14px 16px;font-size:13px;line-height:1.7;color:#CFEEDD}
+.advice strong{color:var(--jade)}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.fade-in{animation:fadeUp .4s ease forwards}
+
+@media print{
+  body{background:#fff;color:#111;padding:0}
+  body::before{display:none}
+  .input-card,.examples,.info-strip,details.settings,.btn-row,header .subtitle{display:none !important}
+  .page{max-width:none}
+  .section,.verdict-card{border:1px solid #ccc;background:#fff;break-inside:avoid}
+  .verdict-summary,.dim-body,.finding .desc{color:#222}
+  .finding b,.section h3,.title{color:#111}
+  .verdict-score{-webkit-print-color-adjust:exact}
+  @page{margin:16mm}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <div class="brand">ForwardJuntos · Beveiligingstool</div>
+  <h1 class="title">Phishing <span>Forensics</span></h1>
+  <p class="subtitle">Tweelaags analyse: een lokale forensische engine (direct, in je browser) + optionele AI-diepteanalyse als forensisch expert — psychologie, linguïstiek, infrastructuur en context.</p>
+</header>
+
+<div class="info-strip">
+  <strong>Privacy, eerlijk uitgelegd.</strong> Laag 1 (forensische engine) draait volledig lokaal — niets verlaat je browser. Laag 2 (AI-diepteanalyse) stuurt de geplakte e-mailtekst naar de Anthropic API met jouw eigen sleutel. Gebruik laag 2 dus niet voor e-mails met gevoelige persoonsgegevens van anderen.
+</div>
+
+<details class="settings">
+  <summary>⚙ AI-diepteanalyse instellen (optioneel)</summary>
+  <div class="settings-body">
+    <div>
+      <label for="apiKey">Anthropic API-sleutel (blijft in je browser)</label>
+      <input id="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off">
+    </div>
+    <div>
+      <label for="apiModel">Model</label>
+      <input id="apiModel" type="text" value="claude-sonnet-4-20250514">
+    </div>
+    <div class="settings-note">
+      De sleutel wordt alleen lokaal bewaard (in deze browser) en staat <strong>nooit</strong> in dit bestand — veilig om dit bestand in een repo te zetten. Zonder sleutel werkt de tool gewoon: dan alleen de lokale engine.
+    </div>
+  </div>
+</details>
+
+<div class="examples">
+  <div class="examples-label">Voorbeelden om te testen</div>
+  <div class="example-pills">
+    <span class="epill" onclick="loadExample('bank')">🏦 Nep-bank mail</span>
+    <span class="epill" onclick="loadExample('pakket')">📦 Pakket ophalen</span>
+    <span class="epill" onclick="loadExample('spear')">🎯 Spear-phishing (CEO-fraude)</span>
+    <span class="epill" onclick="loadExample('legitiem')">✅ Echte nieuwsbrief</span>
+  </div>
+</div>
+
+<div class="input-card">
+  <label class="input-label" for="emailInput">E-mailtekst plakken <span class="hint">onderwerp + afzender + inhoud (HTML-bron mag ook)</span></label>
+  <textarea id="emailInput" placeholder="Plak hier de volledige e-mailtekst, inclusief onderwerpregel, afzender en inhoud..."></textarea>
+
+  <label class="input-label" for="headerInput" style="margin-top:16px">Headers plakken (optioneel) <span class="hint">in je mailprogramma: 'origineel weergeven' / 'show original'</span></label>
+  <textarea id="headerInput" placeholder="From: ... &#10;Reply-To: ...&#10;Authentication-Results: spf=... dkim=... dmarc=..."></textarea>
+
+  <label class="input-label" for="urlInput" style="margin-top:16px">Losse URL controleren (optioneel)</label>
+  <input class="url-input" id="urlInput" placeholder="https://..." oninput="liveUrlCheck()">
+  <div class="url-result" id="urlResult"></div>
+
+  <div class="btn-row">
+    <button class="analyze-btn" id="analyzeBtn" onclick="runAnalysis()">🔬 Volledige forensische analyse</button>
+    <button class="ghost-btn" onclick="window.print()">🖨 Rapport</button>
+    <button class="ghost-btn" onclick="clearAll()">Wissen</button>
+  </div>
+</div>
+
+<div class="result" id="result"></div>
+
+</div>
+
+<script>
+'use strict';
+/* =====================================================================
+   ForwardJuntos · Phishing Forensics
+   Laag 1: lokale forensische engine (URL / header / psycholinguïstiek / HTML)
+   Laag 2: AI-diepteanalyse (elite-analist prompt) via Anthropic API
+   ===================================================================== */
+
+/* ---------- veilige opslag (werkt ook waar localStorage geblokkeerd is) ---------- */
+const store = {
+  get(k){ try { return window.localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v){ try { window.localStorage.setItem(k,v); } catch(e){} }
+};
+
+/* ============================ LAAG 1 · ENGINE ============================ */
+
+const BRANDS = ['ing','rabobank','abnamro','snsbank','asnbank','regiobank','knab','bunq','revolut','paypal',
+  'belastingdienst','digid','postnl','dhl','ups','fedex','bol','coolblue','marktplaats','microsoft','apple',
+  'google','amazon','netflix','spotify','vodafone','kpn','ziggo','icscards','mijnoverheid'];
+
+const SUSPICIOUS_TLDS = ['ru','cn','tk','xyz','top','club','live','icu','rest','cam','gq','ml','cf','work','support','click','link','info','zip','mov'];
+const SHORTENERS = ['bit.ly','tinyurl.com','t.co','goo.gl','ow.ly','cutt.ly','is.gd','buff.ly','rb.gy','shorturl.at','tiny.cc','s.id'];
+
+/* homoglyphs: visueel-verwarbare tekens → latijnse basis */
+const CONFUSABLES = {'а':'a','е':'e','о':'o','р':'p','с':'c','х':'x','у':'y','і':'i','ѕ':'s','ԁ':'d','ո':'n','m':'m',
+  'ο':'o','α':'a','ε':'e','ι':'i','κ':'k','ν':'v','τ':'t','υ':'u','ρ':'p',
+  '0':'o','1':'l','3':'e','4':'a','5':'s','7':'t','@':'a','$':'s','¡':'i','ℓ':'l','ᴏ':'o'};
+
+function normalizeConfusables(s){
+  let out='', hits=0;
+  for (const ch of s){
+    if (CONFUSABLES[ch] && /[^\x00-\x7F]|[0-9@$]/.test(ch)){ out+=CONFUSABLES[ch]; if(/[^\x00-\x7F]/.test(ch)) hits++; }
+    else out+=ch;
+  }
+  return {normalized:out.toLowerCase(), nonAsciiSwaps:hits};
+}
+
+function levenshtein(a,b){
+  if(a===b) return 0;
+  const m=a.length,n=b.length; if(!m) return n; if(!n) return m;
+  let prev=Array.from({length:n+1},(_,i)=>i);
+  for(let i=1;i<=m;i++){
+    const cur=[i];
+    for(let j=1;j<=n;j++){
+      cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    }
+    prev=cur;
+  }
+  return prev[n];
+}
+
+function extractUrls(text){
+  const re=/https?:\/\/[^\s<>"')\]]+/gi;
+  return (text.match(re)||[]).map(u=>u.replace(/[.,;:!?]+$/,''));
+}
+
+function parseDomain(url){
+  try{
+    const u=new URL(url);
+    return {host:u.hostname.toLowerCase(), full:u, ok:true};
+  }catch(e){ return {ok:false}; }
+}
+
+function analyzeUrl(url){
+  const f=[]; // findings {sev,label,desc,code}
+  const p=parseDomain(url);
+  if(!p.ok){ f.push({sev:'md',label:'Onleesbare URL',desc:'De URL is misvormd — vaak bewust, om filters te omzeilen.',code:url}); return f; }
+  const host=p.host;
+  const parts=host.split('.');
+  const tld=parts[parts.length-1];
+  const regDomain=parts.slice(-2).join('.');
+
+  if(host.startsWith('xn--')||host.includes('.xn--')) f.push({sev:'hi',label:'Punycode-domein (IDN)',desc:'Internationaal domein dat visueel een bekend merk kan nabootsen (homoglyph-aanval).',code:host});
+
+  const {normalized,nonAsciiSwaps}=normalizeConfusables(host);
+  if(nonAsciiSwaps>0) f.push({sev:'hi',label:'Homoglyph-tekens in domein',desc:'Niet-latijnse tekens die op gewone letters lijken — klassieke look-alike truc.',code:host+' → '+normalized});
+
+  if(/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) f.push({sev:'hi',label:'IP-adres als host',desc:'Legitieme organisaties linken vrijwel nooit naar een kaal IP-adres.',code:host});
+
+  if(url.includes('@')) f.push({sev:'hi',label:'@-truc in URL',desc:'Alles vóór de @ is nep — de browser gaat naar wat erna komt.',code:url});
+
+  if(SUSPICIOUS_TLDS.includes(tld)) f.push({sev:'md',label:'Verdachte top-level domein .'+tld,desc:'Deze extensie wordt bovengemiddeld vaak voor phishing geregistreerd.',code:host});
+
+  if(SHORTENERS.some(s=>host===s||host.endsWith('.'+s))) f.push({sev:'md',label:'URL-verkorter',desc:'De echte bestemming is verborgen achter een verkorte link.',code:host});
+
+  for(const b of BRANDS){
+    const brandInSub = parts.slice(0,-2).some(seg=>normalizeConfusables(seg).normalized.includes(b));
+    const regNorm = normalizeConfusables(regDomain).normalized;
+    const isOfficial = regNorm===b+'.nl'||regNorm===b+'.com'||regNorm.startsWith(b+'.');
+    if(brandInSub && !isOfficial){
+      f.push({sev:'hi',label:'Merknaam in subdomein-misbruik',desc:`"${b}" staat in het subdomein, maar het échte domein is ${regDomain}.`,code:host});
+      break;
+    }
+  }
+  const sld = normalizeConfusables(parts.length>=2?parts[parts.length-2]:host).normalized;
+  for(const b of BRANDS){
+    if(sld===b) continue;
+    const d=levenshtein(sld,b);
+    if((b.length>=4&&d===1)||(b.length>=8&&d===2)){
+      f.push({sev:'hi',label:'Typosquatting-verdenking',desc:`Domein "${sld}" lijkt verdacht veel op merk "${b}" (verschil: ${d} teken${d>1?'s':''}).`,code:host});
+      break;
+    }
+  }
+  if(/[?&](url|redirect|redir|next|dest|goto|return)=/i.test(url)) f.push({sev:'md',label:'Redirect-parameter',desc:'De link stuurt door naar een tweede, verborgen bestemming.',code:url.slice(0,90)});
+  if(p.full.port&&!['80','443',''].includes(p.full.port)) f.push({sev:'md',label:'Afwijkende poort :'+p.full.port,desc:'Niet-standaard poorten wijzen vaak op geïmproviseerde servers.',code:host+':'+p.full.port});
+  if(url.startsWith('http://')) f.push({sev:'lo',label:'Geen versleuteling (http)',desc:'Serieuze organisaties gebruiken altijd https.',code:url.slice(0,60)});
+  return f;
+}
+
+function analyzeHeaders(raw){
+  const f=[];
+  if(!raw.trim()) return f;
+  const get=(name)=>{ const m=raw.match(new RegExp('^'+name+':\\s*(.+)$','im')); return m?m[1].trim():null; };
+  const mail=(s)=>{ if(!s) return null; const m=s.match(/[\w.+-]+@([\w.-]+)/); return m?{addr:m[0].toLowerCase(),dom:m[1].toLowerCase()}:null; };
+  const from=mail(get('From')), reply=mail(get('Reply-To')), ret=mail(get('Return-Path'));
+
+  if(from&&reply&&from.dom!==reply.dom)
+    f.push({sev:'hi',label:'From ≠ Reply-To',desc:'Je antwoord gaat naar een ánder domein dan de afzender claimt — kernsignaal van fraude.',code:from.dom+' → antwoord naar '+reply.dom});
+  if(from&&ret&&from.dom!==ret.dom&&!ret.dom.endsWith(from.dom))
+    f.push({sev:'md',label:'From ≠ Return-Path',desc:'Het technische retourpad wijkt af van de zichtbare afzender (kan bij mailinglijsten legitiem zijn).',code:from.dom+' vs '+ret.dom});
+
+  const auth=raw.match(/Authentication-Results:[\s\S]*?(?=\n\S|$)/i);
+  if(auth){
+    const a=auth[0].toLowerCase();
+    if(/spf\s*=\s*(fail|softfail)/.test(a)) f.push({sev:'hi',label:'SPF: fail',desc:'De verzendende server mag namens dit domein helemaal niet mailen.',code:'spf=fail'});
+    if(/dkim\s*=\s*fail/.test(a)) f.push({sev:'hi',label:'DKIM: fail',desc:'De digitale handtekening van het bericht klopt niet — inhoud of afzender is gemanipuleerd.',code:'dkim=fail'});
+    if(/dmarc\s*=\s*fail/.test(a)) f.push({sev:'hi',label:'DMARC: fail',desc:'Het bericht voldoet niet aan het anti-spoofing-beleid van het domein.',code:'dmarc=fail'});
+    if(/spf\s*=\s*pass/.test(a)&&/dkim\s*=\s*pass/.test(a)&&/dmarc\s*=\s*pass/.test(a))
+      f.push({sev:'lo',label:'SPF + DKIM + DMARC: pass',desc:'De technische afzenderverificatie klopt (let op: zegt niets over de inhoud).',code:'alle checks pass'});
+  }
+  const fromHdr=get('From');
+  if(fromHdr){
+    const disp=fromHdr.match(/[\w.+-]+@[\w.-]+(?=.*<)/);
+    if(disp&&from&&disp[0].toLowerCase()!==from.addr)
+      f.push({sev:'hi',label:'Vervalst adres in weergavenaam',desc:'De weergavenaam bevat een ander e-mailadres dan de echte afzender — bewuste misleiding.',code:fromHdr.slice(0,80)});
+  }
+  return f;
+}
+
+const LEX = {
+  urgentie:{sev:'hi',bias:'urgentie',re:/\b(urgent|onmiddellijk|direct (actie|handelen)|binnen 24 uur|binnen 48 uur|laatste (kans|waarschuwing)|vervalt (vandaag|morgen)|verloopt|per direct|immediately|act now|expires (today|soon)|final (notice|warning))\b/i,label:'Urgentietaal',desc:'Kunstmatige tijdsdruk schakelt je kritisch denken uit.'},
+  angst:{sev:'hi',bias:'angst',re:/\b(geblokkeerd|opgeschort|bevroren|verwijderd|suspended|locked|beperkt|aangifte|boete|incasso|deurwaarder|rechtszaak|legal action|account (closure|termination))\b/i,label:'Angst / dreiging',desc:'Dreiging met verlies of straf duwt je richting impulsief handelen.'},
+  hebzucht:{sev:'md',bias:'hebzucht',re:/\b(gewonnen|winnaar|prijs|gratis|cadeau|gift ?card|reward|beloning|loterij|refund|terugbetaling|teruggave|compensatie|tegoed)\b/i,label:'Hebzucht-prikkel',desc:'Onverwachte beloningen of teruggaves zijn klassiek lokaas.'},
+  autoriteit:{sev:'md',bias:'autoriteit',re:/\b(belastingdienst|politie|justitie|incassobureau|deurwaarder|bank|fraudeafdeling|security ?(team|department)|it[- ]?afdeling|directie|ceo|cfo)\b/i,label:'Autoriteitsclaim',desc:'Een autoriteitsrol claimen verlaagt je weerstand om te gehoorzamen.'},
+  geheimhouding:{sev:'hi',bias:'sociale isolatie',re:/\b(vertel\s+(dit|het)?\s*(even\s+)?(aan\s+)?niemand|niemand\s+(vertellen|zeggen|informeren)|tussen ons|vertrouwelijk( behandelen| ivm| in verband)?|niet bespreken met|discretie|strikt vertrouwelijk|keep this (between us|confidential))\b/i,label:'Geheimhoudingsverzoek',desc:'Vragen om iets stil te houden isoleert je van controlemechanismen — sterk spear-phishing-signaal.'},
+  credentials:{sev:'hi',bias:'-',re:/\b(wachtwoord|password|inlog(gegevens)?|verifieer (je|uw) (account|gegevens|identiteit)|bevestig (je|uw) (gegevens|identiteit)|pincode|bsn|burgerservicenummer|creditcard ?(nummer|gegevens)|cvv)\b/i,label:'Vraagt om inloggegevens of identiteit',desc:'Legitieme organisaties vragen dit nooit per e-mail.'},
+  betaling:{sev:'md',bias:'-',re:/\b(betaal|betaling|factuur|ideal|tikkie|overmaken|spoedoverboeking|wire transfer|iban|bitcoin|crypto|gift ?cards? kopen)\b/i,label:'Betalingsverzoek',desc:'Onverwachte betaalverzoeken altijd via een ander kanaal verifiëren.'},
+  klik:{sev:'md',bias:'-',re:/\b(klik (hier|op (de )?(link|knop))|open de (link|bijlage)|volg de link|click here|download (de|het) (bestand|bijlage))\b/i,label:'Vage klikoproep',desc:'"Klik hier" zonder transparante bestemming is een klassiek patroon.'},
+  aanhef:{sev:'md',bias:'-',re:/\b(beste klant|geachte (gebruiker|klant|heer\/mevrouw)|dear (user|customer|sir\/madam)|beste relatie)\b/i,label:'Onpersoonlijke aanhef',desc:'Organisaties waar je klant bent, kennen je naam.'},
+  spoed_collega:{sev:'hi',bias:'autoriteit + urgentie',re:/\b(ben (je|jij) (op kantoor|beschikbaar)|(kun|kan) (je|jij) (snel|even|nu) (iets|wat|dit)?|ik zit (nu )?in een (meeting|vergadering)|kan (nu |even )?niet bellen|regel (dit|het) (nu|vandaag|discreet)|moet vandaag nog)\b/i,label:'CEO-fraude-patroon',desc:'Zogenaamd haastige collega/leidinggevende die niet gebeld kan worden — kenmerkend voor spear-phishing.'},
+};
+
+const SAFE_SIGNALS=[
+  {re:/\b(unsubscribe|uitschrijven|afmelden voor deze nieuwsbrief|voorkeuren beheren)\b/i,label:'Afmeldoptie aanwezig'},
+  {re:/\b(privacybeleid|privacy policy|avg|gdpr)\b/i,label:'Privacybeleid vermeld'},
+  {re:/\b(kvk[- ]?(nummer)?[: ]?\d{8}|btw[- ]?(nummer|id)|kamer van koophandel)\b/i,label:'Bedrijfsregistratie vermeld'},
+  {re:/\b(ordernummer|bestelnummer|klantnummer|factuurnummer)[: #]*[A-Z0-9-]{4,}/i,label:'Specifiek referentienummer'},
+];
+
+function analyzeHtmlSource(text){
+  const f=[];
+  if(!/<[a-z][\s\S]*>/i.test(text)) return f;
+  if(/<img[^>]+(width\s*=\s*["']?1["']?[^>]*height\s*=\s*["']?1["']?|height\s*=\s*["']?1["']?[^>]*width\s*=\s*["']?1["']?)/i.test(text)||/<img[^>]+style\s*=\s*["'][^"']*(display\s*:\s*none|width\s*:\s*1px)/i.test(text))
+    f.push({sev:'md',label:'Tracking-pixel',desc:'Onzichtbare 1×1-afbeelding die registreert dat (en wanneer) je de mail opent.',code:'<img width=1 height=1>'});
+  const anchorRe=/<a[^>]+href\s*=\s*["'](https?:\/\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let m;
+  while((m=anchorRe.exec(text))!==null){
+    const hrefDom=parseDomain(m[1]); 
+    const shown=(m[2].replace(/<[^>]+>/g,'')||'').trim();
+    const shownUrl=shown.match(/https?:\/\/[^\s]+|(?:www\.)?[\w-]+\.\w{2,}/);
+    if(hrefDom.ok&&shownUrl){
+      const shownDom=parseDomain(shownUrl[0].startsWith('http')?shownUrl[0]:'https://'+shownUrl[0]);
+      if(shownDom.ok&&shownDom.host.replace(/^www\./,'')!==hrefDom.host.replace(/^www\./,''))
+        f.push({sev:'hi',label:'Linktekst ≠ echte bestemming',desc:'De link toont een ander adres dan waar hij werkelijk heen gaat.',code:shownDom.host+' → '+hrefDom.host});
+    }
+  }
+  if(/style\s*=\s*["'][^"']*(font-size\s*:\s*0|color\s*:\s*(#fff|white)[^"']*background[^"']*(#fff|white))/i.test(text))
+    f.push({sev:'md',label:'Verborgen tekst',desc:'Onzichtbare tekst om spamfilters te misleiden.',code:'font-size:0 / wit-op-wit'});
+  return f;
+}
+
+function localEngine(text,headers){
+  const findings={psych:[],urls:[],headers:[],html:[],safe:[]};
+  let biases=new Set();
+
+  for(const key in LEX){
+    const L=LEX[key];
+    if(L.re.test(text)){
+      findings.psych.push({sev:L.sev,label:L.label,desc:L.desc});
+      if(L.bias!=='-') biases.add(L.bias);
+    }
+  }
+  const caps=(text.match(/[A-Z]/g)||[]).length/Math.max(text.length,1);
+  if(caps>0.15&&text.length>80) findings.psych.push({sev:'md',label:'Overmatig hoofdlettergebruik',desc:'Visuele druk — SCHREEUWENDE tekst hoort niet bij professionele communicatie.'});
+  const excl=(text.match(/!/g)||[]).length;
+  if(excl>3) findings.psych.push({sev:'md',label:excl+' uitroeptekens',desc:'Overdreven nadruk is typisch voor spam en phishing.'});
+
+  const urls=extractUrls(text);
+  urls.forEach(u=>{ findings.urls.push(...analyzeUrl(u)); });
+  if(urls.length>4) findings.urls.push({sev:'md',label:urls.length+' links in één bericht',desc:'Ongebruikelijk veel links verhoogt de kans dat er één raak schiet.'});
+
+  findings.headers=analyzeHeaders(headers);
+  findings.html=analyzeHtmlSource(text);
+  SAFE_SIGNALS.forEach(s=>{ if(s.re.test(text)) findings.safe.push({sev:'lo',label:s.label,desc:''}); });
+
+  const all=[...findings.psych,...findings.urls,...findings.headers,...findings.html];
+  const hi=all.filter(x=>x.sev==='hi').length, md=all.filter(x=>x.sev==='md').length;
+  let risk=Math.min(100, hi*22+md*9-findings.safe.length*6);
+  risk=Math.max(0,risk);
+
+  const personalized=/\b(?:[Bb]este|[Hh]oi|[Hh]allo|[Dd]ag)\s+[A-Z][a-z]{2,}\b/.test(text);
+  const spearCues=LEX.geheimhouding.re.test(text)||LEX.spoed_collega.re.test(text);
+  let classificatie='VEILIG';
+  if(risk>=70) classificatie= (personalized&&spearCues)?'SPEAR_PHISHING':'PHISHING';
+  else if(risk>=55&&spearCues) classificatie='SPEAR_PHISHING';
+  else if(risk>=30) classificatie='VERDACHT';
+
+  return {risk,classificatie,findings,biases:[...biases],urlCount:urls.length};
+}
+
+/* ============================ LAAG 2 · AI ============================ */
+
+const FORENSIC_PROMPT=`Je bent een elite cybersecurity-analist gespecialiseerd in social engineering en phishing detectie. Je analyseert e-mails zoals een forensisch expert — niet op basis van simpele patroonherkenning, maar op basis van psychologische manipulatietechnieken, linguïstische anomalieën, infrastructuurkenmerken en contextuele incongruenties.
+
+ANALYSEER deze e-mail op de volgende dimensies:
+
+1. PSYCHOLOGISCHE MANIPULATIE
+- Welke cognitieve biases worden uitgebuit? (urgentie, angst, hebzucht, autoriteit, schaarste, sociale bewijskracht, wederkerigheid)
+- Hoe wordt de lezer gestuurd zonder dat hij het merkt?
+- Is er sprake van gaslighting of vertrouwensopbouw voorafgaand aan het verzoek?
+
+2. LINGUÏSTISCHE FORENSICS
+- Detecteer vertaalpatronen die wijzen op machine-vertaling of niet-moedertaalspreker
+- Identificeer register-incongruenties (formeel/informeel gemengd)
+- Analyseer zinsstructuur op anomalieën die niet passen bij het geclaimde merk of organisatie
+- Zijn er subtiele spellingswijzigingen in merknamen? (ING → lNG, rn → m, paypal → paypa1)
+
+3. TECHNISCHE SIGNALEN
+- Analyseer alle URLs op: domeinleeftijd-risico, subdomeinmisbruik, homoglyph-aanvallen, typosquatting, verdachte TLDs (.ru, .cn, .tk, .xyz)
+- Identificeer of afzenderdomeinen SPF/DKIM-fraude suggereren op basis van tekstuele aanwijzingen
+- Detecteer verborgen tracking pixels of redirect-ketens
+
+4. CONTEXTUELE INTELLIGENTIE
+- Past dit bericht bij het gedrag van de geclaimde organisatie? (Stuurt PostNL écht zulke mails?)
+- Is de timing logisch? (Factuur voor dienst die je nooit hebt afgenomen)
+- Ontbreekt er informatie die een legitiem bericht altijd zou bevatten? (Ordernummer, klantnaam, specifieke details)
+
+5. RISICOCLASSIFICATIE
+Geef UITSLUITEND een geldige JSON-output, zonder markdown-codeblokken, zonder tekst ervoor of erna, exact in dit schema:
+{
+  "risicoScore": 0-100,
+  "classificatie": "VEILIG|VERDACHT|PHISHING|SPEAR_PHISHING",
+  "zekerheid": "LAAG|MEDIUM|HOOG",
+  "psychologischeManipulatie": {"biases": ["..."], "analyse": "2-4 zinnen"},
+  "linguistischeForensics": {"signalen": ["..."], "analyse": "2-4 zinnen"},
+  "technischeSignalen": {"bevindingen": ["..."], "analyse": "2-4 zinnen"},
+  "contextueleIntelligentie": {"incongruenties": ["..."], "analyse": "2-4 zinnen"},
+  "rodeVlaggen": ["max 6 belangrijkste, concreet"],
+  "aanbevolenActie": "1-3 zinnen concreet handelingsadvies voor de ontvanger",
+  "uitlegVoorLeek": "2-3 zinnen die in gewone taal uitleggen waarom dit oordeel"
+}`;
+
+async function aiForensics(emailText,headers){
+  const key=document.getElementById('apiKey').value.trim();
+  const model=document.getElementById('apiModel').value.trim()||'claude-sonnet-4-20250514';
+  if(!key) return {skipped:true};
+  const userContent='=== E-MAIL ===\n'+emailText+(headers.trim()?'\n\n=== HEADERS ===\n'+headers:'');
+  const resp=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key':key,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify({model,max_tokens:1500,system:FORENSIC_PROMPT,
+      messages:[{role:'user',content:userContent}]})
+  });
+  if(!resp.ok){
+    const t=await resp.text().catch(()=> '');
+    throw new Error('API '+resp.status+(t?' — '+t.slice(0,160):''));
+  }
+  const data=await resp.json();
+  const text=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+  const clean=text.replace(/```json|```/g,'').trim();
+  const jsonStart=clean.indexOf('{');
+  return JSON.parse(clean.slice(jsonStart));
+}
+
+/* ============================ RENDER ============================ */
+
+const sevDot=s=>`<span class="sev sev-${s}"></span>`;
+const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function findingRow(f){
+  return `<div class="finding">${sevDot(f.sev)}<div><b>${esc(f.label)}</b>${f.code?` — <code>${esc(f.code)}</code>`:''}${f.desc?`<div class="desc">${esc(f.desc)}</div>`:''}</div></div>`;
+}
+
+function verdictClass(score){ return score>=55?'verdict-danger':score>=30?'verdict-warning':'verdict-safe'; }
+function verdictIcon(score){ return score>=55?'🚨':score>=30?'⚠️':'✅'; }
+function classLabel(c){ return {VEILIG:'VEILIG',VERDACHT:'VERDACHT',PHISHING:'PHISHING',SPEAR_PHISHING:'SPEAR-PHISHING (gericht)'}[c]||c; }
+
+function renderLocal(local){
+  const F=local.findings;
+  const sec=(title,tag,arr)=>arr.length?`<div class="section fade-in"><h3>${title} <span class="tag">${tag}</span></h3>${arr.map(findingRow).join('')}</div>`:'';
+  return `
+  <div class="verdict-card ${verdictClass(local.risk)} fade-in">
+    <div class="verdict-top">
+      <div class="verdict-icon">${verdictIcon(local.risk)}</div>
+      <div><div class="verdict-score">${local.risk}</div><div class="verdict-label">RISICOSCORE · ${classLabel(local.classificatie)}</div></div>
+      <div class="verdict-meta">LAAG 1 · LOKALE ENGINE<br>${local.urlCount} URL${local.urlCount===1?'':'s'} onderzocht${local.biases.length?'<br>biases: '+esc(local.biases.join(', ')):''}</div>
+    </div>
+    <div class="gauge"><i style="width:${local.risk}%"></i></div>
+  </div>
+  ${sec('Psychologie & taal','lexicale forensics',F.psych)}
+  ${sec('URL-forensics','infrastructuur',F.urls)}
+  ${sec('Header-forensics','SPF / DKIM / DMARC',F.headers)}
+  ${sec('HTML-forensics','broncode',F.html)}
+  ${F.safe.length?`<div class="section fade-in"><h3>Geruststellende signalen <span class="tag">context</span></h3>${F.safe.map(findingRow).join('')}</div>`:''}
+  `;
+}
+
+function renderAI(ai){
+  if(ai.skipped) return `<div class="section fade-in"><h3>AI-diepteanalyse <span class="tag">laag 2 · overgeslagen</span></h3><div class="ai-error">Geen API-sleutel ingesteld — open ⚙ instellingen om de forensisch-expert-analyse te activeren. De lokale engine hierboven blijft volledig werken.</div></div>`;
+  const dim=(t,obj,listKey)=>obj?`<div class="dim"><div class="dim-title">${t}</div><div class="dim-body">${esc(obj.analyse||'')}${(obj[listKey]||[]).length?`<ul>${obj[listKey].map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}</div></div>`:'';
+  return `
+  <div class="verdict-card ${verdictClass(ai.risicoScore)} fade-in">
+    <div class="verdict-top">
+      <div class="verdict-icon">🧠</div>
+      <div><div class="verdict-score">${ai.risicoScore}</div><div class="verdict-label">AI-FORENSICS · ${classLabel(ai.classificatie)} · zekerheid ${esc(ai.zekerheid)}</div></div>
+      <div class="verdict-meta">LAAG 2 · FORENSISCH EXPERT</div>
+    </div>
+    <div class="gauge"><i style="width:${ai.risicoScore}%"></i></div>
+    <div class="verdict-summary" style="margin-top:10px">${esc(ai.uitlegVoorLeek||'')}</div>
+  </div>
+  <div class="section fade-in">
+    <h3>Forensische dimensies <span class="tag">psychologie · taal · techniek · context</span></h3>
+    ${dim('1 · Psychologische manipulatie',ai.psychologischeManipulatie,'biases')}
+    ${dim('2 · Linguïstische forensics',ai.linguistischeForensics,'signalen')}
+    ${dim('3 · Technische signalen',ai.technischeSignalen,'bevindingen')}
+    ${dim('4 · Contextuele intelligentie',ai.contextueleIntelligentie,'incongruenties')}
+  </div>
+  ${(ai.rodeVlaggen||[]).length?`<div class="section fade-in"><h3>Rode vlaggen <span class="tag">top-${ai.rodeVlaggen.length}</span></h3>${ai.rodeVlaggen.map(v=>findingRow({sev:'hi',label:v})).join('')}</div>`:''}
+  ${ai.aanbevolenActie?`<div class="advice fade-in"><strong>Aanbevolen actie:</strong> ${esc(ai.aanbevolenActie)}</div>`:''}
+  `;
+}
+
+/* ============================ FLOW ============================ */
+
+async function runAnalysis(){
+  const text=document.getElementById('emailInput').value.trim();
+  const headers=document.getElementById('headerInput').value;
+  if(!text){ alert('Plak eerst een e-mail om te analyseren.'); return; }
+
+  store.set('fj_model',document.getElementById('apiModel').value.trim());
+  if(document.getElementById('apiKey').value.trim()) store.set('fj_key',document.getElementById('apiKey').value.trim());
+
+  const btn=document.getElementById('analyzeBtn'); btn.disabled=true; btn.textContent='⏳ Analyseren…';
+  const result=document.getElementById('result'); result.classList.add('active');
+
+  const local=localEngine(text,headers);
+  result.innerHTML=renderLocal(local)+`<div class="section" id="aiSection"><h3>AI-diepteanalyse <span class="tag">laag 2</span></h3><div class="ai-pending"><span class="spin">◌</span> Forensisch expert analyseert psychologie, linguïstiek en context…</div></div>`;
+
+  try{
+    const ai=await aiForensics(text,headers);
+    document.getElementById('aiSection').outerHTML=renderAI(ai);
+  }catch(err){
+    document.getElementById('aiSection').innerHTML=`<h3>AI-diepteanalyse <span class="tag">laag 2 · fout</span></h3><div class="ai-error">De AI-analyse lukte niet: ${esc(err.message)}.<br>Controleer je API-sleutel en internetverbinding. De lokale analyse hierboven blijft geldig.</div>`;
+  }
+  btn.disabled=false; btn.textContent='🔬 Volledige forensische analyse';
+  result.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function liveUrlCheck(){
+  const url=document.getElementById('urlInput').value.trim();
+  const el=document.getElementById('urlResult');
+  if(!url){ el.innerHTML=''; return; }
+  const f=analyzeUrl(url.startsWith('http')?url:'https://'+url);
+  el.innerHTML=f.length?f.map(findingRow).join(''):`<div class="finding">${sevDot('lo')}<div><b>Geen directe alarmsignalen in deze URL</b><div class="desc">Let op: een schone URL is geen garantie — context telt mee.</div></div></div>`;
+}
+
+function clearAll(){
+  ['emailInput','headerInput','urlInput'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('urlResult').innerHTML='';
+  const r=document.getElementById('result'); r.classList.remove('active'); r.innerHTML='';
+}
+
+const EXAMPLES={
+bank:`Onderwerp: Uw rekening wordt geblokkeerd - directe actie vereist!
+Van: ING Klantenservice <service@ing-verificatie.xyz>
+
+Geachte klant,
+
+Wij hebben verdachte activiteit gedetecteerd op uw rekening. Uw toegang wordt BINNEN 24 UUR geblokkeerd als u uw gegevens niet verifieert!!
+
+Klik hier om uw identiteit te bevestigen: https://ing.nl.secure-login-verify.xyz/auth
+
+Met vriendelijke groet,
+ING Fraudeafdeling`,
+pakket:`Onderwerp: Uw pakket kon niet worden bezorgd
+Van: PostNL <noreply@postnl-bezorging.top>
+
+Beste klant,
+
+Uw pakket staat klaar maar de bezorgkosten (€1,99) zijn nog niet voldaan. Betaal vandaag, anders wordt het pakket geretourneerd.
+
+Betaal hier: https://bit.ly/3xPkN1
+
+PostNL Bezorgservice`,
+spear:`Onderwerp: Snelle actie nodig - vertrouwelijk
+Van: Dominique Hermans <d.hermans@forwardjuntos-nl.com>
+Reply-To: dhermans.prive@gmail-mail.ru
+
+Hoi Anna,
+
+Ik zit nu in een vergadering bij Brightlands en kan niet bellen. Kun jij snel iets voor me regelen? Het gaat om een spoedoverboeking voor een leverancier, moet vandaag nog. Vertel dit even aan niemand, het is vertrouwelijk ivm de deal.
+
+Stuur me je 06 dan app ik de gegevens.
+
+Dominique`,
+legitiem:`Onderwerp: Je maandelijkse nieuwsbrief van de bibliotheek
+Van: Bibliotheek Heerlen <nieuwsbrief@bibliotheekheerlen.nl>
+
+Beste Dominique,
+
+Deze maand in de bibliotheek: een lezing over duurzaam bouwen (12 juni), de nieuwe collectie is binnen, en je gereserveerde boek ligt klaar tot 20 juni. Je lenersnummer: 0045821.
+
+Openingstijden en agenda: https://www.bibliotheekheerlen.nl/agenda
+
+Wil je deze nieuwsbrief niet meer ontvangen? Klik op uitschrijven. Lees ons privacybeleid op de website.
+
+Bibliotheek Heerlen · KvK 14087125`
+};
+function loadExample(k){ document.getElementById('emailInput').value=EXAMPLES[k]||''; document.getElementById('headerInput').value=''; }
+
+/* init: bewaarde instellingen terugzetten */
+(function(){
+  const k=store.get('fj_key'), m=store.get('fj_model');
+  if(k) document.getElementById('apiKey').value=k;
+  if(m) document.getElementById('apiModel').value=m;
+})();
+</script>
+</body>
+</html>
